@@ -1,6 +1,6 @@
 # Maintainer: arqueon <66568719+arqueon@users.noreply.github.com>
 pkgname=libfprint-adst-2009-git
-pkgver=1.94.10.r1.g0000000
+pkgver=1.94.10.r1.g29cec34
 pkgrel=1
 pkgdesc="libfprint-2 with native ADST / BYD BF5325 (2009:7638) Match-On-Chip USB fingerprint sensor support"
 arch=('x86_64' 'aarch64')
