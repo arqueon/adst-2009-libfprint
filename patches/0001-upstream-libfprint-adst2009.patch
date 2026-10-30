@@ -1,0 +1,36 @@
+diff --git a/libfprint/fprint-list-udev-hwdb.c b/libfprint/fprint-list-udev-hwdb.c
+index 539f3e6..e4a12f1 100644
+--- a/libfprint/fprint-list-udev-hwdb.c
++++ b/libfprint/fprint-list-udev-hwdb.c
+@@ -206,6 +206,7 @@ static const FpIdEntry allowlist_id_table[] = {
+ };
+ 
+ static const FpIdEntry denylist_id_table[] = {
++  { .vid = 0x2009, .pid = 0x7638 }, /* ADST / BYD BF5325 2009:7638 MOC */
+   { .vid = 0x0483, .pid = 0x2016 },
+   /* https://bugs.freedesktop.org/show_bug.cgi?id=66659 */
+   { .vid = 0x045e, .pid = 0x00bb },
+diff --git a/libfprint/meson.build b/libfprint/meson.build
+index f11533c..b49c1a2 100644
+--- a/libfprint/meson.build
++++ b/libfprint/meson.build
+@@ -139,6 +139,7 @@ driver_sources = {
+     'focaltech_moc' : files('drivers/focaltech_moc/focaltech_moc.c'),
+     'mafpmoc' : files('drivers/mafpmoc/mafpmoc.c'),
+     'secugen' : files('drivers/secugen.c'),
++    'adst2009' : files('drivers/adst2009/adst2009.c'),
+ }
+ 
+ helper_sources = {
+diff --git a/meson.build b/meson.build
+index ab09dc1..8f22d04 100644
+--- a/meson.build
++++ b/meson.build
+@@ -147,6 +147,7 @@ drivers_info = {
+     'focaltech_moc': {},
+     'mafpmoc': {},
+     'secugen': {},
++    'adst2009': {},
+ 
+     # SPI driver (non-optional if SPI is available)
+     'elanspi': { 'spi': true, 'helper': ['udev'], 'optional': not have_spi },

@@ -1,0 +1,15 @@
+build/
+pkg/
+src/
+*.pkg.tar.*
+*.o
+*.so
+*.so.*
+__pycache__/
+*.pyc
+adst2009-probe
+tools/adst2009-probe
+adst2009-unit-test
+tests/adst2009-unit-test
+.sdocs/
+.DS_Store

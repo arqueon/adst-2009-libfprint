@@ -1,0 +1,81 @@
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        variant:
+          - upstream-libfprint
+          - sigfm-cs9711
+          - unified-4-readers
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential cmake git meson ninja-build pkg-config python3 \
+            libglib2.0-dev libgusb-dev libusb-1.0-0-dev libpixman-1-dev \
+            libnss3-dev libssl-dev libgudev-1.0-dev libudev-dev udev \
+            libcairo2-dev libopencv-dev
+
+      - name: Hardware safety & protocol unit tests
+        run: |
+          # Ensure forbidden flash/ISP/calibration opcodes are never defined as executable macros
+          ! grep -rnE '^[[:space:]]*#[[:space:]]*define[[:space:]].*(0x0171|0x0005|0x0137|0x013[aA]|0x0126)' drivers/ tools/
+          cc -O2 -Wall -Wextra -Werror -Idrivers/adst2009 \
+            tests/adst2009-unit-test.c \
+            -o /tmp/adst2009-unit-test
+          /tmp/adst2009-unit-test
+          cc -O2 -Wall -Wextra -Werror -Idrivers/adst2009 \
+            tools/adst2009-probe.c \
+            -o /tmp/adst2009-probe \
+            $(pkg-config --cflags --libs libusb-1.0)
+          python3 -m py_compile tools/fprintd-multi
+          bash -n scripts/install-generic-linux.sh build-pkg.sh
+
+      - name: Build and test (${{ matrix.variant }})
+        run: |
+          mkdir -p /tmp/ci-src
+          if [ "${{ matrix.variant }}" = "upstream-libfprint" ]; then
+            git clone --depth 1 https://gitlab.freedesktop.org/libfprint/libfprint.git /tmp/ci-src/libfprint
+            patch -d /tmp/ci-src/libfprint -Np1 -i "$GITHUB_WORKSPACE/patches/0001-upstream-libfprint-adst2009.patch"
+          elif [ "${{ matrix.variant }}" = "sigfm-cs9711" ]; then
+            git clone --depth 1 --branch cs9711-rebase https://github.com/archeYR/libfprint-CS9711.git /tmp/ci-src/libfprint
+            patch -d /tmp/ci-src/libfprint -Np1 -i "$GITHUB_WORKSPACE/patches/0001-adst2009-cs9711.patch"
+          else
+            git clone --depth 1 --branch cs9711-rebase https://github.com/archeYR/libfprint-CS9711.git /tmp/ci-src/libfprint
+            git clone --depth 1 https://github.com/arqueon/zk9500-libfprint.git /tmp/ci-src/zk9500
+            git clone --depth 1 https://github.com/arqueon/betterlife-347d-libfprint.git /tmp/ci-src/betterlife
+            patch -d /tmp/ci-src/libfprint -Np1 -i "$GITHUB_WORKSPACE/patches/0001-unified-cs9711-zk9500-betterlife347d-adst2009.patch"
+            install -Dm644 /tmp/ci-src/zk9500/drivers/zk9500.c /tmp/ci-src/libfprint/libfprint/drivers/zk9500.c
+            for _f in betterlife347d_moc.c betterlife347d.c betterlife347d-proto.c betterlife347d-proto.h sm3.c sm3.h sm4.c sm4.h; do
+              install -Dm644 "/tmp/ci-src/betterlife/drivers/betterlife347d/${_f}" "/tmp/ci-src/libfprint/libfprint/drivers/betterlife347d/${_f}"
+            done
+          fi
+
+          for _f in adst2009.c adst2009-proto.h; do
+            install -Dm644 "drivers/adst2009/${_f}" "/tmp/ci-src/libfprint/libfprint/drivers/adst2009/${_f}"
+          done
+
+          meson setup /tmp/ci-build /tmp/ci-src/libfprint \
+            -Dintrospection=false -Ddoc=false -Dgtk-examples=false -Dinstalled-tests=false
+          meson compile -C /tmp/ci-build
+          meson test -C /tmp/ci-build --suite unit-tests --print-errorlogs
+          /tmp/ci-build/libfprint/fprint-list-supported-devices | grep -q "2009:7638"
+          if [ "${{ matrix.variant }}" != "upstream-libfprint" ]; then
+            /tmp/ci-build/libfprint/fprint-list-supported-devices | grep -q "2541:0236"
+          fi
+          if [ "${{ matrix.variant }}" = "unified-4-readers" ]; then
+            /tmp/ci-build/libfprint/fprint-list-supported-devices | grep -q "1b55:0124"
+            /tmp/ci-build/libfprint/fprint-list-supported-devices | grep -q "347d:0302"
+            /tmp/ci-build/libfprint/fprint-list-supported-devices | grep -q "347d:0304"
+          fi

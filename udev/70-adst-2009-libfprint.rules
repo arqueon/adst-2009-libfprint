@@ -1,0 +1,7 @@
+# udev rules for ADST / ZTEway (BYD BF5325 + AisinoChip ACH512) 2009:7638 MOC fingerprint sensor:
+# 1. Disable USB autosuspend and grant active local session uaccess permissions.
+# 2. Unbind Linux usb-storage from interface 0 so the fake 4-sector CD-ROM (/dev/sr0)
+#    does not trigger cdrom_id / udisks2 USB bus reset storms.
+ACTION=="add|change", SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="2009", ATTR{idProduct}=="7638", TAG+="uaccess", ENV{ID_LIBFPRINT_DRIVER}="adst2009", TEST=="power/control", ATTR{power/control}="on"
+ACTION=="add|bind", SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_interface", ATTRS{idVendor}=="2009", ATTRS{idProduct}=="7638", DRIVER=="usb-storage", RUN+="/bin/sh -c 'echo -n $kernel > /sys/bus/usb/drivers/usb-storage/unbind'"
+SUBSYSTEM=="block", ENV{ID_VENDOR_ID}=="2009", ENV{ID_MODEL_ID}=="7638", ENV{UDISKS_IGNORE}="1", OPTIONS+="nowatch"
